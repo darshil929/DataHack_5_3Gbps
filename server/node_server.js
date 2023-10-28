@@ -4,7 +4,12 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 
 const app = express();
-const PORT = 3000;
+
+const db = require('./Utils/database');
+
+require('dotenv').config();
+
+const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 
@@ -36,6 +41,10 @@ app.post('/send-data', (req, res) => {
     });
 });
 
-app.listen(PORT, () => {
-    console.log('Listening on Port 3000');
+db.mongoConnect(() => {
+
+    app.listen(PORT, () => {
+        console.log(`Server is running at port ${PORT}...`);
+    });
+
 });
