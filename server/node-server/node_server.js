@@ -1,18 +1,41 @@
-const express = require('express')
+const express = require('express');
 const request = require('request');
+const bodyParser = require('body-parser');
+const cors = require('cors');
 
-app = express();
+const app = express();
 const PORT = 3000;
 
-app.get('/home', function (req, res) {
-    request('http://127.0.0.1:5000/flask', function (error, response, body) {
-        console.error('error:', error); // error printing
-        console.log('statusCode:', response && response.statusCode); // if response received -> print response status code 
-        console.log('body:', body); // recieved data printing
-        res.send(body); // display response on website
+app.use(cors());
+
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+
+
+app.get('/get-data', (req, res) => {
+    request('http://127.0.0.1:5000/test-get', (error, response, body) => {
+        if (!error && response.statusCode === 200) {
+            const data = JSON.parse(body);
+            res.status(200).json(data);
+        } else {
+            res.status(500).json({ error: 'Error fetching data from Flask' });
+        }
     });
 });
 
-app.listen(PORT, function () {
+app.post('/send-data', (req, res) => {
+
+    request.post('http://127.0.0.1:5000/test-post', {
+        json: req.body,
+    }, (error, response, body) => {
+        if (!error && response.statusCode === 200) {
+            res.status(200).json({ message: 'Data sent to Flask!' });
+        } else {
+            res.status(500).json({ error: 'Error sending data to Flask' });
+        }
+    });
+});
+
+app.listen(PORT, () => {
     console.log('Listening on Port 3000');
 });
