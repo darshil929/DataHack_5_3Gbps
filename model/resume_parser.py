@@ -1,32 +1,21 @@
-import requests
+from flask import Flask, request, jsonify
 import json
 
-files = {'chatgpt_resume': open("./Sairaaj_Surve_Resume.pdf", 'rb')}
-headers = {'Authorization': '310991a8-07d7-496f-aaec-c3c6a92cd0e6'}
-response = requests.request(
-    method='POST',
-    headers=headers,
-    url="https://www.docsaar.com/api/chatgpt_resume_parsing",
-    files=files
-)
+app = Flask(__name__)
 
-if response.status_code == 200:
-    data = response.json()
-
-    keywords = ["skills"]
-
-    extracted_data = {}
-
-    for key, value in data["output"].items():
-        for keyword in keywords:
-            if keyword.lower() in key.lower():
-                extracted_data[keyword] = value
-
+@app.route('/parse_resume', methods=['POST'])
+def parse_resume():
+    resume_file = request.files['resume']
+    # Process and analyze the resume here
+    # You can call your resume parsing code
+    extracted_data = {
+        "skills": ["Python", "Machine Learning", "Data Analysis"],  # Modify this based on your response structure
+    }
+    # Save the extracted data as extracted_data.json
     extracted_data_file_name = 'extracted_data.json'
-
     with open(extracted_data_file_name, 'w') as json_file:
         json.dump(extracted_data, json_file, indent=4)
+    return jsonify({"message": "Resume analysis complete. Extracted data saved."})
 
-    print(f"Extracted data has been saved to '{extracted_data_file_name}'")
-else:
-    print(f"Request failed with status code {response.status_code}: {response.text}")
+if __name__ == '__main__':
+    app.run(debug=True, host="0.0.0.0")
