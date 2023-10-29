@@ -1,42 +1,28 @@
 from flask import Flask, request, jsonify
 import requests
 import json
-import tempfile
 import os
 
 app = Flask(__name__)
 
-@app.route('/upload_resume', methods=['POST'])
-def upload_resume():
-    # Check if a file is provided in the request
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file part'})
+# Directory to save uploaded resumes
+UPLOAD_FOLDER = "uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-    uploaded_file = request.files['file']
+def analyze_resume(resume_file_path):
+    print(resume_file_path)
+    files = {'chatgpt_resume': open(resume_file_path, 'rb')}
+    headers = {'Authorization': '07accf5d-3a5b-426b-b9a4-6cb211e75a5d'}
+    response = requests.post(
+        url="https://www.docsaar.com/api/chatgpt_resume_parsing",
+        headers=headers,
+        files=files
+    )
 
-    # Check if the file has a valid name
-    if uploaded_file.filename == '':
-        return jsonify({'error': 'No selected file'})
-
-    # Create a temporary file to store the uploaded data
-    temp_file = tempfile.NamedTemporaryFile(delete=False)
-    uploaded_file.save(temp_file)
-    temp_file.close()
-
-    # Define the API endpoint and headers
-    api_url = "https://www.docsaar.com/api/chatgpt_resume_parsing"
-    api_headers = {'Authorization': '310991a8-07d7-496f-aaec-c3c6a92cd0e6'}
-
-    # Send the file to the parsing API
-    try:
-        files = {'chatgpt_resume': (uploaded_file.filename, open(temp_file.name, 'rb'))}
-        response = requests.post(api_url, headers=api_headers, files=files)
-
-        if response.status_code == 200:
+    if response.status_code == 200:
+        try:
             data = response.json()
-
             keywords = ["skills"]
-
             extracted_data = {}
 
             for key, value in data["output"].items():
@@ -44,23 +30,35 @@ def upload_resume():
                     if keyword.lower() in key.lower():
                         extracted_data[keyword] = value
 
-            # Save extracted data to a JSON file
             extracted_data_file_name = 'extracted_data.json'
+            
             with open(extracted_data_file_name, 'w') as json_file:
                 json.dump(extracted_data, json_file, indent=4)
 
-            # Clean up the temporary file
-            os.remove(temp_file.name)
+            return {"message": f"Resume analysis complete. Extracted data saved to '{extracted_data_file_name}'"}
+        except json.JSONDecodeError as e:
+            return {"error": f"Failed to decode JSON response: {str(e)}"}
+    else:
+        return {"error": f"Resume analysis failed with status code {response.status_code}: {response.text}"}
 
-            return jsonify({'message': f'Extracted data has been saved to {extracted_data_file_name}'})
+@app.route('/parse_resume', methods=['POST'])
+def parse_resume():
+    resume_file = request.files['resume']
+    
+    if resume_file:
+        # Save the uploaded resume to the uploads folder
+        resume_path = os.path.join(UPLOAD_FOLDER, "uploaded_resume.pdf")
+        resume_file.save(resume_path)
+
+        # Analyze the resume
+        data = analyze_resume(resume_path)
+
+        if "error" in data:
+            return jsonify(data)
         else:
-            # Clean up the temporary file
-            os.remove(temp_file.name)
-            return jsonify({'error': f'Request failed with status code {response.status_code}: {response.text}'})
-    except Exception as e:
-        # Clean up the temporary file
-        os.remove(temp_file.name)
-        return jsonify({'error': str(e)})
+            return jsonify(data)
+    else:
+        return jsonify({"error": "No resume file provided."})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host="0.0.0.0")
