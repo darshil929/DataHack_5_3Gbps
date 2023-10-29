@@ -3,14 +3,12 @@ import numpy as np
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import spacy
-import pickle  # Import the pickle module
-import json
+import json 
 
-# Load the extracted skills from extracted_data.json
-with open('extracted_data.json', 'r') as file:
-    data = json.load(file)
+from flask import Flask, request, jsonify
 
-# Load the spaCy model for NLP
+app = Flask(__name__)
+
 nlp = spacy.load("en_core_web_sm")
 
 df = pd.read_csv("./datasets/naukri_data_science_jobs_india (2).csv")
@@ -52,6 +50,23 @@ def recommend_skills(job_description, user_skills):
 
     return top_missing_skills
 
+user_skills = []  # Initialize as an empty list
+with open("extracted_data.json", "r") as json_file:
+    extracted_data = json.load(json_file)
+    if "skills" in extracted_data:
+        user_skills = extracted_data["skills"]
+        print(user_skills)
+
+@app.route('/recommend_skills', methods=['POST'])
+def get_recommendations():
+    data = request.get_json()
+    job_description = data.get("job_description", "")
+    
+    if job_description:
+        top_missing_skills = recommend_skills(job_description, user_skills)
+        return jsonify(top_missing_skills)
+    else:
+        return jsonify({"message": "No job description provided."})
+
 if __name__ == '__main__':
-    with open('job_recommendation_model.pkl', 'wb') as file:
-        pickle.dump(recommend_skills, file)
+    app.run(debug=True, host="0.0.0.0", port=5001)

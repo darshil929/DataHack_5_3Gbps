@@ -12,7 +12,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 def analyze_resume(resume_file_path):
     print(resume_file_path)
     files = {'chatgpt_resume': open(resume_file_path, 'rb')}
-    headers = {'Authorization': '07accf5d-3a5b-426b-b9a4-6cb211e75a5d'}
+    headers = {'Authorization': '49692155-5dc2-404a-92c8-b70279666c3f'}
     response = requests.post(
         url="https://www.docsaar.com/api/chatgpt_resume_parsing",
         headers=headers,
