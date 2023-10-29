@@ -4,52 +4,49 @@ import json
 
 app = Flask(__name__)
 
-def parse_resume(resume_file):
-    # Replace 'Your-Authorization-Token' with your actual authorization token
-    headers = {'Authorization': '07accf5d-3a5b-426b-b9a4-6cb211e75a5d'}
+@app.route('/upload_resume', methods=['POST'])
+def upload_resume():
+    # Check if a file is provided in the request
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'})
 
-    # Use requests to send the resume for parsing
-    response = requests.post(
-        url="https://www.docsaar.com/api/chatgpt_resume_parsing",
-        headers=headers,
-        files={'chatgpt_resume': resume_file}
-    )
+    uploaded_file = request.files['file']
 
-    if response.status_code == 200:
-        data = response.json()
+    # Check if the file has a valid name
+    if uploaded_file.filename == '':
+        return jsonify({'error': 'No selected file'})
 
-        skills = extract_skills(data)
-        if skills:
-            return skills
+    # Define the API endpoint and headers
+    api_url = "https://www.docsaar.com/api/chatgpt_resume_parsing"
+    api_headers = {'Authorization': '310991a8-07d7-496f-aaec-c3c6a92cd0e6'}
 
-    return None
+    # Send the file to the parsing API
+    try:
+        files = {'chatgpt_resume': (uploaded_file.filename, uploaded_file)}
+        response = requests.post(api_url, headers=api_headers, files=files)
 
-def extract_skills(data):
-    if 'output' in data:
-        output_data = data['output']
-        skills = output_data.get("skills", [])
-        return skills
-    return None
+        if response.status_code == 200:
+            data = response.json()
 
-@app.route('/parse_resume', methods=['POST'])
-def parse_resume_endpoint():
-    resume_file = request.files['resume']
+            keywords = ["skills"]
 
-    if resume_file:
-        skills = parse_resume(resume_file)
-        print(skills)
-        if skills:
-            extracted_data = {
-                "skills": skills,
-            }
+            extracted_data = {}
+
+            for key, value in data["output"].items():
+                for keyword in keywords:
+                    if keyword.lower() in key.lower():
+                        extracted_data[keyword] = value
+
+            # Save extracted data to a JSON file
             extracted_data_file_name = 'extracted_data.json'
             with open(extracted_data_file_name, 'w') as json_file:
                 json.dump(extracted_data, json_file, indent=4)
-            return jsonify({"message": "Resume analysis complete. Extracted data saved."})
+
+            return jsonify({'message': f'Extracted data has been saved to {extracted_data_file_name}'})
         else:
-            return jsonify({"error": "No skills data found in the response."})
-    else:
-        return jsonify({"error": "No resume file uploaded."})
+            return jsonify({'error': f'Request failed with status code {response.status_code}: {response.text}'})
+    except Exception as e:
+        return jsonify({'error': str(e)})
 
 if __name__ == '__main__':
-    app.run(debug=True, host="0.0.0.0")
+    app.run(debug=True)
